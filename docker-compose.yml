@@ -1,0 +1,56 @@
+version: '2'
+
+services:
+  lb:
+    image: haproxy:latest
+    ports:
+      - 80:80
+    links:
+      - web1
+      - web2
+    volumes:
+      - $PWD/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+
+  web1:
+    image: nginx:latest
+    volumes:
+      - $PWD/index1.html:/usr/share/nginx/html/index.html
+    links:
+      - logstash:ls
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://localhost:12201
+        tag: 'devops'
+
+  web2:
+    image: nginx:latest
+    volumes:
+      - $PWD/index2.html:/usr/share/nginx/html/index.html
+    links:
+      - logstash:ls
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://localhost:12201
+        tag: 'devops'
+
+  logstash:
+    image: logstash
+    ports:
+      - 12201:12201/udp
+    volumes:
+      - $PWD/logstash.conf:/config/logstash.conf:ro
+    links:
+      - elasticsearch:es
+    command: -f /config/logstash.conf
+
+  elasticsearch:
+    image: elasticsearch
+
+  kibana:
+    image: kibana
+    ports:
+      - 5601:5601
+    links:
+      - elasticsearch:es
